@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Process window · LT-01 · Source Foundry</title>
+  <meta name="description" content="Unofficial concept: adaptive process-window qualification for a lithography tool. Synthetic data.">
+  <link rel="icon" href="assets/mark.svg">
+  <link rel="stylesheet" href="style.css">
+  <script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+</head>
+<body>
+<div class="app">
+  <aside class="side">
+    <div class="brand">
+      <img src="assets/wordmark.png" alt="Source" height="22">
+    </div>
+    <button class="toolpick" type="button">
+      <span class="dot ok"></span>
+      <span class="tp-main"><span class="tp-name">LT-01</span><span class="tp-sub">Litho bay 2</span></span>
+      <i data-lucide="chevrons-up-down"></i>
+    </button>
+    <nav class="nav">
+      <div class="nav-h">Tool</div>
+      <a><i data-lucide="gauge"></i>Overview</a>
+      <a><i data-lucide="layers"></i>Exposures</a>
+      <a><i data-lucide="activity"></i>Diagnostics</a>
+      <a><i data-lucide="scroll-text"></i>Logs</a>
+      <div class="nav-h">Qualification</div>
+      <a class="active"><i data-lucide="crosshair"></i>Process window<span class="tag">New</span></a>
+      <a><i data-lucide="move-diagonal"></i>Overlay</a>
+      <a><i data-lucide="sliders-horizontal"></i>Dose &amp; focus</a>
+      <div class="nav-h">Metrology</div>
+      <a><i data-lucide="scan-line"></i>CD-SEM queue<span class="count" id="navQueue">8</span></a>
+      <a><i data-lucide="circle-dot"></i>Wafers</a>
+    </nav>
+    <div class="side-foot">
+      <a><i data-lucide="settings"></i>Settings</a>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="top">
+      <div class="crumbs"><span>LT-01</span><i data-lucide="chevron-right"></i><span>Qualification</span><i data-lucide="chevron-right"></i><span class="cur">Process window</span></div>
+      <div class="top-r">
+        <span class="status"><span class="dot ok"></span>Tool idle</span>
+        <button class="btn ghost" type="button" id="btnTruth"><i data-lucide="eye"></i><span>Simulated truth</span></button>
+        <button class="btn primary" type="button" id="btnNext">Measure next 8 sites</button>
+      </div>
+    </header>
+
+    <section class="hero">
+      <div class="hero-pattern" aria-hidden="true"></div>
+      <h1>Process window</h1>
+      <p class="sub">FEM wafer W-0418 · Test reticle TR-2 · <span id="featCount">3</span> features · CD spec 40 nm ± 10% · Required exposure latitude 5%</p>
+      <div class="rounds" id="rounds"></div>
+    </section>
+
+    <section class="kpis" id="kpis"></section>
+
+    <section class="grid-a">
+      <div class="card pw-card">
+        <div class="card-h">
+          <div><h2>Focus-exposure window</h2><p class="hint">Posterior probability that every feature is in spec</p></div>
+          <div class="legend" id="pwLegend"></div>
+        </div>
+        <div id="pwChart" class="chart"></div>
+      </div>
+      <div class="col">
+        <div class="card wafer-card">
+          <div class="card-h"><div><h2>FEM wafer</h2><p class="hint">Focus by column, dose by row</p></div><div class="mini" id="waferCount"></div></div>
+          <div id="wafer" class="chart"></div>
+        </div>
+        <div class="card queue-card">
+          <div class="card-h"><div><h2 id="queueTitle">Next sites</h2><p class="hint" id="queueHint"></p></div></div>
+          <div id="queue"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="grid-b">
+      <div class="card">
+        <div class="card-h"><div><h2>Depth of focus</h2><p class="hint">Posterior at 5% EL</p></div></div>
+        <div id="dofHist" class="chart"></div>
+      </div>
+      <div class="card">
+        <div class="card-h"><div><h2>Exposure-defocus trade-off</h2><p class="hint">DOF at every required EL, 90% band</p></div></div>
+        <div id="edChart" class="chart"></div>
+      </div>
+      <div class="card">
+        <div class="card-h"><div><h2>Bossung curves</h2><p class="hint" id="bossHint"></p></div><div class="seg" id="featTabs"></div></div>
+        <div id="bossung" class="chart"></div>
+        <div class="blegend" id="bossLegend"></div>
+      </div>
+    </section>
+
+    <section class="grid-c">
+      <div class="card">
+        <div class="card-h"><div><h2>Validation</h2><p class="hint" id="valHint"></p></div></div>
+        <div class="val">
+          <div id="valChart" class="chart"></div>
+          <table class="tbl" id="valTable"></table>
+        </div>
+      </div>
+      <div class="card method">
+        <div class="card-h"><div><h2>Method</h2><p class="hint">How sites are chosen</p></div></div>
+        <ol>
+          <li><b>Model.</b> Each feature's CD is a Bayesian Bossung surface in log-dose and focus (14-term polynomial, normal-inverse-gamma prior), refit after every batch.</li>
+          <li><b>Window.</b> Every posterior draw gives a full focus-exposure window; DOF at the required EL is read off each draw, so the interval is the spread over draws.</li>
+          <li><b>Next sites.</b> A site is worth measuring if its three CD readings would move the DOF estimate: score = &Sigma;<sub>k</sub> Cov(DOF, CD<sub>k</sub>)&sup2; / (Var CD<sub>k</sub> + &sigma;&sup2;). Batches are picked greedily with a rank-one covariance update between picks.</li>
+          <li><b>Stop.</b> Measure until the 90% interval on DOF is within ±5 nm.</li>
+        </ol>
+      </div>
+    </section>
+
+    <footer class="foot">Unofficial concept demo by Mohith Gajjela. Not affiliated with Source Foundry. Synthetic data from a seeded tool simulator; every number is computed in your browser by <code>core/pw.js</code>.</footer>
+  </main>
+</div>
+<div class="tip" id="tip"></div>
+<script type="module" src="app.js"></script>
+</body>
+</html>
