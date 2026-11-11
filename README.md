@@ -43,7 +43,7 @@ All of this is in `core/pw.js` (no dependencies). The page (`index.html`, `app.j
 ## Tests
 
 ```
-node --test test/
+node --test test/pw.test.mjs
 ```
 
 11 tests: FEM layout geometry, the closed-form in-spec interval against a brute-force scan, the window search against a closed-form parabolic Bossung case, exact coefficient recovery, the Sherman-Morrison update against a refit, gamma quantiles, determinism, and an end-to-end check that adaptive beats random on 12 tools while keeping coverage.
